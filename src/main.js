@@ -352,7 +352,8 @@ app.whenReady().then(async () => {
 
     createApplicationMenu();
     createWindow();
-    createTray();
+    // Tray icon only in tray mode — keeps the desktop panel clean otherwise.
+    if (settings.get('closeToTray')) createTray();
 
     // Bring up the embedded tunnel before applying proxy rules, so the
     // session sees the live SOCKS endpoint on first load.
@@ -394,7 +395,7 @@ app.whenReady().then(async () => {
     // 2) X11: the WM's close (Alt+F4, dock "close window") races Chromium's
     //    own destroy — the X window dies while Electron still tracks it, so
     //    'closed' never fires. Probe the X server for our window id and exit
-    //    when it is gone (silently skipped when xprop is unavailable).
+    //    when it is gone (silently skipped when xwininfo is unavailable).
     let xProbeTool; // undefined = unresolved, 'none' = unavailable
     setInterval(() => {
         if (isQuitting || isMac) return;
@@ -417,8 +418,11 @@ app.whenReady().then(async () => {
         if (xProbeTool === 'none') return;
         try {
             const xid = mainWindow.getNativeWindowHandle().readUInt32LE(0);
-            execFile(xProbeTool || 'xprop', ['-id', String(xid), 'WM_NAME'], (err) => {
-                if (!err) { xProbeTool = xProbeTool || 'xprop'; return; }
+            // xwininfo succeeds for any live window regardless of which
+            // properties it has — xprop would false-positive on a window
+            // that lacks the probed property.
+            execFile(xProbeTool || 'xwininfo', ['-id', String(xid)], (err) => {
+                if (!err) { xProbeTool = xProbeTool || 'xwininfo'; return; }
                 if (err.code === 'ENOENT') { xProbeTool = 'none'; return; }
                 if (!isQuitting) {
                     console.error('X window closed behind Electron (WM race) — quitting');
@@ -497,6 +501,13 @@ ipcMain.handle('set-auto-launch', async (event, enable) => {
 ipcMain.handle('settings:get-all', () => settings.getAll());
 ipcMain.handle('settings:set', (event, key, value) => {
     settings.set(key, value);
+    if (key === 'closeToTray') {
+        if (value && !tray) createTray();
+        if (!value && tray) {
+            try { tray.destroy(); } catch (e) { /* already gone */ }
+            tray = null;
+        }
+    }
     return settings.get(key);
 });
 
