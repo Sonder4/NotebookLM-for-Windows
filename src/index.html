@@ -5,56 +5,64 @@
     <title>NotebookLM 桌面版</title>
     <style>
       :root {
-        --bg: rgba(243, 232, 248, 0.82);
-        --titlebar-grad-a: rgba(107, 33, 168, 0.78);
-        --titlebar-grad-b: rgba(139, 60, 206, 0.66);
-        --footer-grad-a: rgba(58, 16, 114, 0.80);
-        --footer-grad-b: rgba(90, 24, 154, 0.70);
-        --footer-border: rgba(255, 255, 255, 0.16);
-        --glass-border: rgba(255, 255, 255, 0.30);
-        --glass-highlight: rgba(255, 255, 255, 0.40);
+        --bg: rgba(252, 252, 254, 0.60);
+        --titlebar-grad-a: rgba(255, 255, 255, 0.52);
+        --titlebar-grad-b: rgba(255, 255, 255, 0.32);
+        --footer-grad-a: rgba(255, 255, 255, 0.46);
+        --footer-grad-b: rgba(255, 255, 255, 0.30);
+        --footer-border: rgba(0, 0, 0, 0.06);
+        --glass-border: rgba(0, 0, 0, 0.10);
+        --glass-highlight: rgba(255, 255, 255, 0.60);
         --glass-blur: blur(28px) saturate(170%);
         --glass-radius: 14px;
-        --text-on-purple: #ffffff;
-        --text-muted: #e0e1dd;
-        --link: #d1b3e8;
-        --link-hover: #f3e8f8;
-        --divider: #d1b3e8;
+        --text-on-purple: #232733; /* chrome text (name kept for compat) */
+        --text-muted: #6b7280;
+        --link: #4b5563;
+        --link-hover: #111827;
+        --divider: rgba(0, 0, 0, 0.08);
         --close-hover: #e81123;
-        --btn-bg: rgba(255, 255, 255, 0.15);
-        --btn-bg-hover: rgba(255, 255, 255, 0.3);
-        --btn-bg-active: rgba(255, 255, 255, 0.5);
+        --btn-bg: rgba(0, 0, 0, 0.05);
+        --btn-bg-hover: rgba(0, 0, 0, 0.10);
+        --btn-bg-active: rgba(0, 0, 0, 0.16);
+        --btn-primary-bg: rgba(35, 39, 51, 0.92);
+        --btn-primary-fg: #ffffff;
+        --sheen-color: rgba(255, 255, 255, 0.75);
+        --recording-bg: rgba(0, 0, 0, 0.07);
         --modal-bg: rgba(255, 255, 255, 0.86);
         --modal-fg: #1a1a1a;
-        --modal-border: #d1b3e8;
-        --error-bg: rgba(255, 255, 255, 0.88);
+        --modal-border: rgba(0, 0, 0, 0.10);
+        --error-bg: rgba(255, 255, 255, 0.90);
         --error-fg: #1a1a1a;
       }
       [data-theme="dark"] {
-        --bg: rgba(15, 10, 20, 0.82);
-        --titlebar-grad-a: rgba(42, 10, 74, 0.80);
-        --titlebar-grad-b: rgba(74, 23, 115, 0.68);
-        --footer-grad-a: rgba(26, 5, 48, 0.82);
-        --footer-grad-b: rgba(42, 10, 74, 0.72);
-        --footer-border: rgba(255, 255, 255, 0.10);
-        --glass-border: rgba(255, 255, 255, 0.16);
-        --glass-highlight: rgba(255, 255, 255, 0.22);
+        --bg: rgba(17, 17, 22, 0.62);
+        --titlebar-grad-a: rgba(32, 32, 40, 0.60);
+        --titlebar-grad-b: rgba(20, 20, 28, 0.44);
+        --footer-grad-a: rgba(26, 26, 34, 0.56);
+        --footer-grad-b: rgba(18, 18, 26, 0.42);
+        --footer-border: rgba(255, 255, 255, 0.08);
+        --glass-border: rgba(255, 255, 255, 0.14);
+        --glass-highlight: rgba(255, 255, 255, 0.20);
         --glass-blur: blur(28px) saturate(170%);
         --glass-radius: 14px;
-        --text-on-purple: #f0e6ff;
-        --text-muted: #b8a8c8;
-        --link: #c79de8;
-        --link-hover: #f0e6ff;
-        --divider: #2a1a3a;
+        --text-on-purple: #f2f2f7;
+        --text-muted: #9ca3af;
+        --link: #c7c9d1;
+        --link-hover: #ffffff;
+        --divider: rgba(255, 255, 255, 0.10);
         --close-hover: #c11020;
         --btn-bg: rgba(255, 255, 255, 0.08);
-        --btn-bg-hover: rgba(255, 255, 255, 0.18);
-        --btn-bg-active: rgba(255, 255, 255, 0.3);
-        --modal-bg: rgba(26, 18, 38, 0.88);
-        --modal-fg: #f0e6ff;
-        --modal-border: #3a2a4a;
-        --error-bg: rgba(26, 18, 38, 0.90);
-        --error-fg: #f0e6ff;
+        --btn-bg-hover: rgba(255, 255, 255, 0.16);
+        --btn-bg-active: rgba(255, 255, 255, 0.26);
+        --btn-primary-bg: rgba(255, 255, 255, 0.92);
+        --btn-primary-fg: #16181f;
+        --sheen-color: rgba(255, 255, 255, 0.30);
+        --recording-bg: rgba(255, 255, 255, 0.12);
+        --modal-bg: rgba(24, 24, 32, 0.90);
+        --modal-fg: #f2f2f7;
+        --modal-border: rgba(255, 255, 255, 0.12);
+        --error-bg: rgba(24, 24, 32, 0.92);
+        --error-fg: #f2f2f7;
       }
       html, body { background: transparent; }
       body {
@@ -86,7 +94,7 @@
       #titlebar-title { font-size: 13px; font-weight: 600; letter-spacing: 0.5px; }
       #titlebar-middle { display: flex; align-items: center; gap: 12px; -webkit-app-region: no-drag; }
       .control-group { display: flex; align-items: center; gap: 5px; font-size: 12px; }
-      #opacity-slider { width: 80px; accent-color: #fce8e6; cursor: pointer; }
+      #opacity-slider { width: 80px; accent-color: currentColor; cursor: pointer; }
       .tbtn {
         position: relative; overflow: hidden;
         background: var(--btn-bg);
@@ -99,14 +107,14 @@
       }
       .tbtn::after {
         content: ''; position: absolute; inset: 0; pointer-events: none;
-        background: linear-gradient(115deg, transparent 32%, rgba(255,255,255,0.38) 50%, transparent 68%);
+        background: linear-gradient(115deg, transparent 32%, var(--sheen-color) 50%, transparent 68%);
         transform: translateX(-130%);
         transition: transform 0.55s ease;
       }
       .tbtn:hover { background: var(--btn-bg-hover); transform: translateY(-1px); }
       .tbtn:hover::after { transform: translateX(130%); }
       .tbtn:active { transform: translateY(0); }
-      .tbtn.active { background: var(--btn-bg-active); box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 12px rgba(255,255,255,0.18); }
+      .tbtn.active { background: var(--btn-bg-active); box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 12px var(--glass-highlight); }
       #titlebar-right { display: flex; -webkit-app-region: no-drag; height: 100%; }
       .win-btn {
         width: 40px; background: transparent; border: none;
@@ -140,7 +148,7 @@
         background: var(--btn-bg); color: var(--modal-fg); cursor: pointer; font-size: 12px;
       }
       .error-overlay button.primary {
-        background: var(--titlebar-grad-b); color: var(--text-on-purple); border-color: var(--titlebar-grad-b);
+        background: var(--btn-primary-bg); color: var(--btn-primary-fg); border-color: var(--btn-primary-bg);
       }
 
       footer {
@@ -185,10 +193,10 @@
         background: transparent; color: var(--modal-fg); cursor: pointer; font-size: 12px;
       }
       .modal .footer-row button.primary {
-        background: var(--titlebar-grad-b); color: var(--text-on-purple); border-color: var(--titlebar-grad-b);
+        background: var(--btn-primary-bg); color: var(--btn-primary-fg); border-color: var(--btn-primary-bg);
       }
       .hotkey-capture { font-family: monospace; min-width: 200px; text-align: center; }
-      .hotkey-capture.recording { background: rgba(139, 60, 206, 0.2); }
+      .hotkey-capture.recording { background: var(--recording-bg); }
       .status-msg { font-size: 11px; opacity: 0.7; margin-top: 4px; min-height: 14px; }
     </style>
   </head>
