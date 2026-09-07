@@ -137,7 +137,7 @@ function extractNotesAsMarkdown() {
         return `## ${headText}\n\n${body}`.trim();
     }).filter(Boolean);
 
-    const markdown = `# ${title}\n\n_Exported from NotebookLM via NotebookLM-for-Windows_\n\n${sections.join('\n\n---\n\n')}\n`;
+    const markdown = `# ${title}\n\n${sections.join('\n\n---\n\n')}\n`;
     return { markdown, title };
 }
 

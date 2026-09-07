@@ -78,12 +78,69 @@ Version 2.1 was the boring-but-important release: a real NSIS installer, an elec
 2. Pick your flavour:
    - **Installer** (`-Setup.exe`) — recommended. Adds shortcuts and enables background auto-update.
    - **Portable** (`.exe`) — just download and run, nothing touches your system.
+   - **Linux** (`.AppImage` / `.deb`) — see [Ubuntu & Linux](#ubuntu--linux) below.
 3. Run it. That's the whole setup.
 
 > **Tip:** Pin `NotebookLM-for-Windows.exe` to your taskbar for one-click access.
 
 > [!WARNING]
 > **Upgrading from < v2.1?** Switch to the **Installer** build — that's where automatic background updates kick in.
+
+---
+
+## Ubuntu & Linux
+
+The Electron app itself is cross-platform, and this fork ships first-class Linux support:
+
+- **Packaging**: `npm run dist:linux` produces `.AppImage` and `.deb` (electron-builder `linux` target).
+- **Auto-update** is disabled on Linux (no feed configured) instead of throwing on startup.
+- **Wayland/X11 safe** opacity handling (Ghost Mode degrades gracefully on Wayland where compositors reject per-window opacity).
+- **Tray, Quick-Clip global hotkey, split panes, auto-launch** (via `~/.config/autostart`) all work as on Windows.
+
+Run from source on Ubuntu 22.04+:
+
+```bash
+sudo apt install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2   # electron deps
+npm install
+npm start          # or: npx electron .
+npm run dist:linux # AppImage + deb
+```
+
+## Agent CLI (`nbd`) — drive the app from Codex / Claude Code
+
+The app hosts a **loopback-only, bearer-token-authenticated control server**, and ships a CLI (`nbd` / `notebooklm-desktop`) that exposes every feature as JSON commands — designed for AI agents and scripts:
+
+```bash
+npx . cli.js status              # app/window/panes/proxy/tunnel snapshot (JSON)
+nbd tunnel import "vless://…"    # configure the embedded tunnel to your VPS
+nbd proxy check                  # connectivity check through the app session
+nbd open <notebook-id>           # navigate the active pane
+nbd panes 2 && nbd ghost on
+nbd notes-export ~/notes.md
+```
+
+Full command reference: [docs/agent-cli.md](docs/agent-cli.md).
+
+## Independent proxy & mainland-optimized routing
+
+The app never touches your system proxy. Its `persist:notebooklm` session gets its own rules, with several modes ([docs/proxy.md](docs/proxy.md)):
+
+| Mode | What it does |
+|---|---|
+| `off` / `system` | direct / follow OS |
+| `tunnel` | **embedded sing-box client** (auto-managed child process) speaking `vless+reality` / `hysteria2` straight to your VPS over IPv4/IPv6 — no Mihomo/TUN, no admin rights, works on any machine after importing one URI |
+| `vps` | all traffic through a plain `http://`/`socks5://` proxy URL |
+| `mainland` | split routing: only Google/NotebookLM domains via the proxy, everything else direct |
+| `manual` | raw Chromium proxy rules |
+
+Mainland-network reality check: a plaintext HTTP CONNECT proxy carrying `CONNECT notebooklm.google.com:443` gets keyword-reset by the GFW, so the `tunnel` mode (Reality over TCP 443) is the reliable path there.
+
+## This fork's other changes
+
+- Agent control server + CLI ([docs/agent-cli.md](docs/agent-cli.md))
+- Embedded VPS tunnel + proxy modes ([docs/proxy.md](docs/proxy.md))
+- Linux/Ubuntu support & packaging
+- 22 smoke tests (original 6 + proxy/tunnel/control-server suites)
 
 ---
 

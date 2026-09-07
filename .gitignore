@@ -39,3 +39,11 @@ playwright/.cache/
 
 # Claude
 .claude/
+
+# Vendored binaries (sing-box etc.)
+vendor/
+
+# Local credentials - never commit
+control-token
+proxy-auth.json
+tunnel/
