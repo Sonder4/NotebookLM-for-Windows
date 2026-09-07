@@ -3,6 +3,10 @@
   "version": "3.0.0",
   "description": "Native cross-platform desktop wrapper for Google NotebookLM",
   "main": "src/main.js",
+  "bin": {
+    "notebooklm-desktop": "cli.js",
+    "nbd": "cli.js"
+  },
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",

@@ -113,17 +113,10 @@
         height: 40px;
         background: linear-gradient(90deg, var(--footer-grad-a), var(--footer-grad-b));
         border-top: 1px solid var(--footer-border);
-        padding: 0 15px; display: flex; align-items: center; justify-content: center;
+        padding: 0 15px; display: flex; align-items: center; justify-content: flex-start;
         font-size: 13px; color: var(--text-muted); user-select: none; position: relative;
       }
-      footer a {
-        color: var(--link); text-decoration: none; cursor: pointer;
-        font-weight: bold; transition: color 0.2s;
-      }
-      footer a:hover { color: var(--link-hover); text-decoration: underline; }
-      .footer-side-left { position: absolute; left: 15px; display: flex; align-items: center; }
-      .footer-center { display: flex; align-items: center; gap: 12px; }
-      .footer-side-right { position: absolute; right: 15px; display: flex; align-items: center; }
+      .footer-side-left { display: flex; align-items: center; }
 
       /* Settings modal */
       .modal-backdrop {
@@ -222,19 +215,6 @@
           <input type="checkbox" id="autoLaunchToggle" /> Auto-Launch
         </label>
       </div>
-      <div class="footer-center">
-        <div class="branding">
-          built with <span style="color: #ff006e;">&hearts;</span> by
-          <a href="#" onclick="openLink('https://www.linkedin.com/in/gyanesh-samanta/')">Gyanesh Samanta</a>
-        </div>
-        <span style="opacity: 0.5; font-size: 12px; margin: 0 5px;">|</span>
-        <span style="font-size: 12px; color: var(--link-hover); font-weight: 500;">Follow for more:</span>
-        <a href="#" onclick="openLink('https://www.linkedin.com/newsletters/gyanesh-on-product-6979386586404651008/')">Newsletter</a>
-        <a href="#" onclick="openLink('https://github.com/GyaneshSamanta')">GitHub</a>
-      </div>
-      <div class="footer-side-right">
-        <a href="#" onclick="openLink('https://buymeachai.ezee.li/GyaneshOnProduct')" style="background: #FFDD00; color: #000; padding: 4px 10px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 12px;">☕ Buy Me A Chai</a>
-      </div>
     </footer>
 
     <!-- Settings modal -->
@@ -265,6 +245,35 @@
             <option value="2">2</option>
             <option value="3">3</option>
           </select>
+        </div>
+        <h2 style="margin-top: 14px;">Proxy</h2>
+        <div class="row">
+          <label for="proxy-mode-select">Mode</label>
+          <select id="proxy-mode-select">
+            <option value="off">Off (direct)</option>
+            <option value="system">Follow system</option>
+            <option value="tunnel">Embedded tunnel (VPS via vless/hysteria2)</option>
+            <option value="vps">Direct proxy (http/socks URL)</option>
+            <option value="mainland">Split: Google via proxy, rest direct</option>
+            <option value="manual">Manual rules</option>
+          </select>
+        </div>
+        <div class="row" id="proxy-server-row">
+          <label for="proxy-server-input">Proxy server (http://user:pass@host:port / socks5://)</label>
+          <input type="text" id="proxy-server-input" placeholder="socks5://127.0.0.1:7890">
+        </div>
+        <div class="row" id="proxy-tunnel-row">
+          <label for="proxy-tunnel-input">Tunnel URI (vless://… or hysteria2://…)</label>
+          <input type="password" id="proxy-tunnel-input" placeholder="vless://uuid@[2001:db8::1]:443?...">
+        </div>
+        <div class="row" id="proxy-rules-row">
+          <label for="proxy-rules-input">Chromium proxy rules (manual mode)</label>
+          <input type="text" id="proxy-rules-input" placeholder="[*.]google.com=socks5://127.0.0.1:7890">
+        </div>
+        <div class="status-msg" id="proxy-status"></div>
+        <div class="footer-row">
+          <button id="proxy-apply-btn">Apply proxy</button>
+          <button id="proxy-check-btn">Check connectivity</button>
         </div>
         <div class="footer-row">
           <button id="settings-close">Close</button>

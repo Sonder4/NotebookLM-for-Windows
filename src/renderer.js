@@ -170,8 +170,23 @@ document.addEventListener('drop', (e) => {
     }
 });
 
+// ---------- Agent-driven navigation & pane control ----------
+if (window.api) {
+    window.api.onNavigate((url) => {
+        const wv = getActiveWebview();
+        if (!wv) return;
+        try { wv.loadURL(url); } catch (e) { console.error('navigate failed', e); }
+    });
+    window.api.onPanesChanged((n) => {
+        applyPaneCount(n);
+        paneCount = Math.max(1, Math.min(3, n));
+    });
+}
+
 // ---------- Export notes ----------
 let pendingExport = false;
+let pendingExportPath = null;
+
 $('export-btn').addEventListener('click', () => {
     const wv = getActiveWebview();
     if (!wv) return;
@@ -180,7 +195,34 @@ $('export-btn').addEventListener('click', () => {
     catch (e) { pendingExport = false; console.error(e); }
 });
 
+// Agent flow: write extracted notes straight to a path (no dialog)
+if (window.api && window.api.onExportNotesToFile) {
+    window.api.onExportNotesToFile((filePath) => {
+        const wv = getActiveWebview();
+        if (!wv) {
+            window.api.saveNotesFileTo({ path: filePath, content: '' })
+                .catch(() => {});
+            return;
+        }
+        pendingExportPath = filePath;
+        try { wv.send('extract-notes'); }
+        catch (e) {
+            pendingExportPath = null;
+            window.api.saveNotesFileTo({ path: filePath, content: '' }).catch(() => {});
+        }
+    });
+}
+
 async function handleNotesExtracted(payload) {
+    if (pendingExportPath) {
+        const filePath = pendingExportPath;
+        pendingExportPath = null;
+        await window.api.saveNotesFileTo({
+            path: filePath,
+            content: (payload && payload.markdown) || (payload && payload.error ? `# export failed\n\n${payload.error}\n` : ''),
+        });
+        return;
+    }
     if (!pendingExport) return;
     pendingExport = false;
     if (!payload || !payload.markdown) {
@@ -215,6 +257,17 @@ async function openSettings() {
     paneCountSelect.value = String(s.paneCount || 1);
     hotkeyInput.value = s.quickClipAccelerator || '';
     hotkeyStatus.textContent = '';
+    // Proxy section
+    proxyModeSelect.value = s.proxyMode || 'off';
+    proxyServerInput.value = s.proxyServer || '';
+    proxyRulesInput.value = s.proxyRules || '';
+    try {
+        const t = await window.api.getTunnelStatus();
+        if (t && t.uriConfigured) proxyTunnelInput.placeholder = `configured (running: ${!!t.running})`;
+        else proxyTunnelInput.placeholder = 'vless://uuid@[2001:db8::1]:443?...';
+    } catch (e) { /* non-fatal */ }
+    updateProxyRows(proxyModeSelect.value);
+    proxyStatus.textContent = proxyHelpText(proxyModeSelect.value);
     settingsModal.classList.add('show');
 }
 settingsBtn.addEventListener('click', openSettings);
@@ -273,6 +326,79 @@ hotkeyInput.addEventListener('keydown', async (e) => {
     }
     hotkeyInput.blur();
 });
+
+// ---------- Proxy & embedded tunnel (settings modal) ----------
+const proxyModeSelect = $('proxy-mode-select');
+const proxyServerInput = $('proxy-server-input');
+const proxyTunnelInput = $('proxy-tunnel-input');
+const proxyRulesInput = $('proxy-rules-input');
+const proxyServerRow = $('proxy-server-row');
+const proxyTunnelRow = $('proxy-tunnel-row');
+const proxyRulesRow = $('proxy-rules-row');
+const proxyStatus = $('proxy-status');
+const proxyApplyBtn = $('proxy-apply-btn');
+const proxyCheckBtn = $('proxy-check-btn');
+
+function updateProxyRows(mode) {
+    proxyServerRow.style.display = (mode === 'vps' || mode === 'mainland') ? '' : 'none';
+    proxyTunnelRow.style.display = mode === 'tunnel' ? '' : 'none';
+    proxyRulesRow.style.display = mode === 'manual' ? '' : 'none';
+}
+
+function proxyHelpText(mode) {
+    switch (mode) {
+        case 'tunnel': return 'Embedded sing-box tunnel — paste a vless:// or hysteria2:// URI, then Apply.';
+        case 'vps': return 'All traffic through a plain http/socks proxy (needs no local client).';
+        case 'mainland': return 'Only Google/NotebookLM domains via the proxy; everything else direct.';
+        case 'manual': return 'Raw Chromium proxy rules.';
+        default: return '';
+    }
+}
+
+if (window.api && proxyModeSelect) {
+    proxyModeSelect.addEventListener('change', () => {
+        updateProxyRows(proxyModeSelect.value);
+        proxyStatus.textContent = proxyHelpText(proxyModeSelect.value);
+    });
+
+    proxyApplyBtn.addEventListener('click', async () => {
+        proxyStatus.textContent = 'Applying…';
+        try {
+            const mode = proxyModeSelect.value;
+            if (mode === 'tunnel') {
+                const uri = proxyTunnelInput.value.trim();
+                if (uri) await window.api.setTunnelUri(uri);
+                else await window.api.startTunnel();
+            } else {
+                await window.api.settingsSet('proxyMode', mode);
+                const server = proxyServerInput.value.trim();
+                if (server) await window.api.settingsSet('proxyServer', server);
+                const rules = proxyRulesInput.value.trim();
+                if (rules) await window.api.settingsSet('proxyRules', rules);
+            }
+            const result = await window.api.applyProxy();
+            if (result && result.ok) {
+                proxyStatus.textContent = `Applied: ${JSON.stringify(result.config)}`;
+            } else {
+                proxyStatus.textContent = `Failed: ${result && result.error}`;
+            }
+        } catch (e) {
+            proxyStatus.textContent = `Failed: ${e.message || e}`;
+        }
+    });
+
+    proxyCheckBtn.addEventListener('click', async () => {
+        proxyStatus.textContent = 'Checking connectivity to NotebookLM…';
+        try {
+            const result = await window.api.checkProxy();
+            proxyStatus.textContent = result && result.ok
+                ? `Reachable: HTTP ${result.status} in ${result.ms}ms`
+                : `Unreachable: ${result && result.error}`;
+        } catch (e) {
+            proxyStatus.textContent = `Check failed: ${e.message || e}`;
+        }
+    });
+}
 
 // ---------- Init from settings ----------
 (async function init() {

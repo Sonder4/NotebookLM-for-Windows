@@ -7,6 +7,9 @@ const fs = require('fs');
 const AutoLaunch = require('auto-launch');
 const { autoUpdater } = require('electron-updater');
 const settings = require('./settings');
+const proxy = require('./proxy');
+const { TunnelManager } = require('./tunnel');
+const { createControlServer } = require('./control-server');
 
 app.setName('NotebookLM-for-Windows');
 
@@ -20,6 +23,33 @@ let isQuitting = false;
 let currentAccelerator = null;
 
 const appLauncher = new AutoLaunch({ name: 'NotebookLM-for-Windows' });
+
+// Embedded VLESS/Hysteria2 tunnel (sing-box child process) — see tunnel.js
+const tunnel = new TunnelManager({ userDataDir: null, app });
+// Set once app is ready and userData path is known.
+
+// ------------------------------------------------------------------ proxy
+
+const notebooklmSession = () => session.fromPartition('persist:notebooklm', { cache: true });
+
+async function applyProxyNow() {
+    const result = await proxy.applyProxy(notebooklmSession(), settings, app.getPath('userData'), tunnel.status());
+    if (result.ok) {
+        controlServer && controlServer.setLastProxyConfig(result.config);
+    }
+    return result;
+}
+
+// Chromium asks for proxy credentials via the `login` event (vps mode).
+app.on('login', (event, webContents, details, authInfo, callback) => {
+    if (!authInfo || !authInfo.isProxy) return;
+    const config = proxy.resolveConfig(settings, app.getPath('userData'), tunnel.status());
+    if (config.mode !== 'vps' || config.host !== authInfo.host) return;
+    const auth = proxy.loadAuth(app.getPath('userData'));
+    if (!auth.username && !auth.password) return;
+    event.preventDefault();
+    callback(auth.username, auth.password);
+});
 
 function createWindow() {
     const initialOpacity = settings.get('opacity');
@@ -42,7 +72,7 @@ function createWindow() {
     });
 
     if (typeof initialOpacity === 'number') {
-        mainWindow.setOpacity(initialOpacity);
+        try { mainWindow.setOpacity(initialOpacity); } catch (e) { /* Wayland */ }
     }
 
     mainWindow.loadFile(path.join(__dirname, 'index.html'));
@@ -205,8 +235,55 @@ function sendThemeToRenderer() {
     mainWindow.webContents.send('theme-changed', resolved);
 }
 
-app.whenReady().then(() => {
+// ------------------------------------------------------- notes export to file
+// Used by the agent control server: extract notes from the active pane and
+// write them straight to a path, skipping the save dialog.
+
+let pendingNoteExport = null;
+
+function exportNotesToFile(win, filePath) {
+    return new Promise((resolve) => {
+        pendingNoteExport = { resolve, filePath };
+        win.webContents.send('export-notes-to-file', filePath);
+        setTimeout(() => {
+            if (pendingNoteExport) {
+                const p = pendingNoteExport;
+                pendingNoteExport = null;
+                p.resolve({ ok: false, error: 'timeout waiting for notes extraction (is a notebook with notes open?)' });
+            }
+        }, 20000);
+    });
+}
+
+// --------------------------------------------------------------- control API
+
+let controlServer = null;
+
+function startControlServer() {
+    if (settings.get('controlEnabled') === false || process.env.NBD_CONTROL_DISABLE === '1') {
+        console.log('control-server: disabled');
+        return;
+    }
+    controlServer = createControlServer({
+        settings,
+        deps: {
+            getMainWindow: () => mainWindow,
+            appVersion: () => app.getVersion(),
+            userDataDir: () => app.getPath('userData'),
+            sendTheme: sendThemeToRenderer,
+            quit: () => { isQuitting = true; app.quit(); },
+            tunnel,
+            proxy,
+            applyProxyNow,
+            exportNotesToFile,
+        },
+    });
+    controlServer.start();
+}
+
+app.whenReady().then(async () => {
     settings.init();
+    tunnel.userDataDir = app.getPath('userData');
 
     try {
         session.fromPartition('persist:notebooklm', { cache: true });
@@ -217,6 +294,13 @@ app.whenReady().then(() => {
     createApplicationMenu();
     createWindow();
     createTray();
+
+    // Bring up the embedded tunnel before applying proxy rules, so the
+    // session sees the live SOCKS endpoint on first load.
+    if (settings.get('proxyMode') === 'tunnel') {
+        try { await tunnel.start(); } catch (e) { console.error('tunnel start failed:', e); }
+    }
+    await applyProxyNow();
 
     if (isMac) {
         try { app.dock.setIcon(path.join(__dirname, '../assets', 'icon.png')); } catch (e) {}
@@ -237,12 +321,19 @@ app.whenReady().then(() => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
 
-    autoUpdater.allowPrerelease = false;
-    autoUpdater.checkForUpdatesAndNotify();
+    // electron-updater has no feed for this fork's dev flow; only check for
+    // packaged builds that can actually install updates (AppImage/mac/win).
+    if (app.isPackaged && (isMac || !isLinux || process.env.APPIMAGE)) {
+        autoUpdater.allowPrerelease = false;
+        autoUpdater.checkForUpdatesAndNotify();
+    }
+
+    startControlServer();
 });
 
 app.on('will-quit', () => {
     globalShortcut.unregisterAll();
+    tunnel.stop();
 });
 
 app.on('window-all-closed', () => {
@@ -268,7 +359,7 @@ ipcMain.on('window-controls', (event, action) => {
 
 ipcMain.on('set-opacity', (event, value) => {
     if (mainWindow) {
-        mainWindow.setOpacity(value);
+        try { mainWindow.setOpacity(value); } catch (e) { /* Wayland */ }
         settings.set('opacity', value);
     }
 });
@@ -324,7 +415,7 @@ ipcMain.handle('set-theme', (event, value) => {
     return value;
 });
 
-// Notes export
+// Notes export (save dialog)
 ipcMain.handle('notes:save-markdown', async (event, { filename, content }) => {
     const result = await dialog.showSaveDialog(mainWindow, {
         title: 'Export notes',
@@ -340,7 +431,65 @@ ipcMain.handle('notes:save-markdown', async (event, { filename, content }) => {
     }
 });
 
-// Quick-clip overlay
+// Notes export (straight to a path — used by the agent CLI)
+ipcMain.handle('notes:save-to-file', async (event, { path: filePath, content }) => {
+    try {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, String(content), 'utf8');
+        const result = { ok: true, path: filePath, bytes: Buffer.byteLength(String(content)) };
+        if (pendingNoteExport) {
+            pendingNoteExport.resolve(result);
+            pendingNoteExport = null;
+        }
+        return result;
+    } catch (e) {
+        if (pendingNoteExport) {
+            pendingNoteExport.resolve({ ok: false, error: e.message });
+            pendingNoteExport = null;
+        }
+        return { ok: false, error: e.message };
+    }
+});
+
+// ---------- Proxy / tunnel IPC (settings UI + renderer helpers) ----------
+
+ipcMain.handle('proxy:get-config', () => proxy.resolveConfig(settings, app.getPath('userData'), tunnel.status()));
+
+ipcMain.handle('proxy:apply', async () => {
+    const result = await applyProxyNow();
+    return result;
+});
+
+ipcMain.handle('proxy:check', async () => proxy.checkProxy(notebooklmSession()));
+
+ipcMain.handle('tunnel:status', () => tunnel.status());
+
+ipcMain.handle('tunnel:set-uri', async (event, uri) => {
+    const parsed = tunnel.setUri(uri); // throws on invalid input
+    if (settings.get('proxyMode') !== 'tunnel') settings.set('proxyMode', 'tunnel');
+    await tunnel.start();
+    await applyProxyNow();
+    return { ok: true, server: { protocol: parsed.protocol, server: parsed.server, port: parsed.port, name: parsed.name }, status: tunnel.status() };
+});
+
+ipcMain.handle('tunnel:start', async () => {
+    await tunnel.start();
+    await applyProxyNow();
+    return tunnel.status();
+});
+
+ipcMain.handle('tunnel:stop', async () => {
+    tunnel.stop();
+    await applyProxyNow();
+    return tunnel.status();
+});
+
+ipcMain.handle('tunnel:download', async (event, onProgress) => {
+    return { path: await tunnel.downloadBinary() };
+});
+
+// ---------- Quick-clip overlay IPC ----------
+
 ipcMain.on('quick-clip:confirm', (event, text) => {
     if (quickClipOverlay && !quickClipOverlay.isDestroyed()) quickClipOverlay.hide();
     if (mainWindow) {

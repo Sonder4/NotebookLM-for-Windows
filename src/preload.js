@@ -35,6 +35,23 @@ contextBridge.exposeInMainWorld('api', {
     onQuickClip: (callback) => ipcRenderer.on('quick-clip', (_, text) => callback(text)),
     onOpenSettings: (callback) => ipcRenderer.on('open-settings', () => callback()),
 
+    // Agent-driven navigation & pane control (control-server -> renderer)
+    onNavigate: (callback) => ipcRenderer.on('navigate-active', (_, url) => callback(url)),
+    onPanesChanged: (callback) => ipcRenderer.on('panes-changed', (_, n) => callback(n)),
+
+    // Notes export straight to a file path (agent CLI), skipping the dialog
+    onExportNotesToFile: (callback) => ipcRenderer.on('export-notes-to-file', (_, p) => callback(p)),
+    saveNotesFileTo: (payload) => ipcRenderer.invoke('notes:save-to-file', payload),
+
+    // Proxy / embedded tunnel (settings UI)
+    getProxyConfig: () => ipcRenderer.invoke('proxy:get-config'),
+    applyProxy: () => ipcRenderer.invoke('proxy:apply'),
+    checkProxy: () => ipcRenderer.invoke('proxy:check'),
+    getTunnelStatus: () => ipcRenderer.invoke('tunnel:status'),
+    setTunnelUri: (uri) => ipcRenderer.invoke('tunnel:set-uri', uri),
+    startTunnel: () => ipcRenderer.invoke('tunnel:start'),
+    stopTunnel: () => ipcRenderer.invoke('tunnel:stop'),
+
     // Quick-clip overlay (used only by overlay window)
     onQuickClipText: (callback) => ipcRenderer.on('quick-clip-text', (_, text) => callback(text)),
     quickClipConfirm: (text) => ipcRenderer.send('quick-clip:confirm', text),
