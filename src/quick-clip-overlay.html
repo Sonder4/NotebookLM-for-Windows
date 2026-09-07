@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <title>Quick-Clip</title>
@@ -11,11 +11,13 @@
       }
       .card {
         height: 100%; box-sizing: border-box;
-        background: linear-gradient(135deg, #2a0a4a, #4a1773);
-        color: #f0e6ff; border-radius: 10px;
+        background: linear-gradient(135deg, rgba(42, 10, 74, 0.82), rgba(74, 23, 115, 0.72));
+        backdrop-filter: blur(24px) saturate(170%);
+        -webkit-backdrop-filter: blur(24px) saturate(170%);
+        color: #f0e6ff; border-radius: 14px;
         padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.45);
-        border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 8px 30px rgba(0,0,0,0.45);
+        border: 1px solid rgba(255,255,255,0.18);
         -webkit-app-region: drag;
       }
       .header { display: flex; align-items: center; justify-content: space-between; font-size: 11px; opacity: 0.8; }
@@ -41,13 +43,13 @@
   <body>
     <div class="card">
       <div class="header">
-        <span>⚡ Quick-Clip</span>
-        <span class="hint">Enter to clip · Esc to cancel</span>
+        <span>⚡ 快速剪藏</span>
+        <span class="hint">Enter 剪藏 · Esc 取消</span>
       </div>
-      <div class="preview empty" id="preview">No clipboard text</div>
+      <div class="preview empty" id="preview">剪贴板暂无文本</div>
       <div class="actions">
-        <button id="cancel">Cancel</button>
-        <button id="confirm" class="primary">Clip to NotebookLM</button>
+        <button id="cancel">取消</button>
+        <button id="confirm" class="primary">剪藏到 NotebookLM</button>
       </div>
     </div>
     <script>

@@ -11,7 +11,7 @@ test.describe('app launch', () => {
     const window = await ctx.app.firstWindow();
     await window.waitForLoadState('domcontentloaded');
     const title = await window.title();
-    expect(title).toMatch(/NotebookLM-for-Windows/i);
+    expect(title).toMatch(/NotebookLM\s*桌面版/i);
   });
 
   test('title bar buttons are present', async () => {

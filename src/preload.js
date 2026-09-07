@@ -39,6 +39,9 @@ contextBridge.exposeInMainWorld('api', {
     onNavigate: (callback) => ipcRenderer.on('navigate-active', (_, url) => callback(url)),
     onPanesChanged: (callback) => ipcRenderer.on('panes-changed', (_, n) => callback(n)),
 
+    // Window state (maximize -> drop the glass corner radius)
+    onWindowState: (callback) => ipcRenderer.on('window-state', (_, max) => callback(max)),
+
     // Notes export straight to a file path (agent CLI), skipping the dialog
     onExportNotesToFile: (callback) => ipcRenderer.on('export-notes-to-file', (_, p) => callback(p)),
     saveNotesFileTo: (payload) => ipcRenderer.invoke('notes:save-to-file', payload),

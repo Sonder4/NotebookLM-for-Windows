@@ -1,16 +1,20 @@
 <!doctype html>
-<html>
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>NotebookLM-for-Windows v3</title>
+    <title>NotebookLM 桌面版</title>
     <style>
       :root {
-        --bg: #f3e8f8;
-        --titlebar-grad-a: #6B21A8;
-        --titlebar-grad-b: #8b3cce;
-        --footer-grad-a: #3a1072;
-        --footer-grad-b: #5a189a;
-        --footer-border: #380b6b;
+        --bg: rgba(243, 232, 248, 0.82);
+        --titlebar-grad-a: rgba(107, 33, 168, 0.78);
+        --titlebar-grad-b: rgba(139, 60, 206, 0.66);
+        --footer-grad-a: rgba(58, 16, 114, 0.80);
+        --footer-grad-b: rgba(90, 24, 154, 0.70);
+        --footer-border: rgba(255, 255, 255, 0.16);
+        --glass-border: rgba(255, 255, 255, 0.30);
+        --glass-highlight: rgba(255, 255, 255, 0.40);
+        --glass-blur: blur(28px) saturate(170%);
+        --glass-radius: 14px;
         --text-on-purple: #ffffff;
         --text-muted: #e0e1dd;
         --link: #d1b3e8;
@@ -20,19 +24,23 @@
         --btn-bg: rgba(255, 255, 255, 0.15);
         --btn-bg-hover: rgba(255, 255, 255, 0.3);
         --btn-bg-active: rgba(255, 255, 255, 0.5);
-        --modal-bg: #ffffff;
+        --modal-bg: rgba(255, 255, 255, 0.86);
         --modal-fg: #1a1a1a;
         --modal-border: #d1b3e8;
-        --error-bg: #ffffff;
+        --error-bg: rgba(255, 255, 255, 0.88);
         --error-fg: #1a1a1a;
       }
       [data-theme="dark"] {
-        --bg: #0f0a14;
-        --titlebar-grad-a: #2a0a4a;
-        --titlebar-grad-b: #4a1773;
-        --footer-grad-a: #1a0530;
-        --footer-grad-b: #2a0a4a;
-        --footer-border: #110422;
+        --bg: rgba(15, 10, 20, 0.82);
+        --titlebar-grad-a: rgba(42, 10, 74, 0.80);
+        --titlebar-grad-b: rgba(74, 23, 115, 0.68);
+        --footer-grad-a: rgba(26, 5, 48, 0.82);
+        --footer-grad-b: rgba(42, 10, 74, 0.72);
+        --footer-border: rgba(255, 255, 255, 0.10);
+        --glass-border: rgba(255, 255, 255, 0.16);
+        --glass-highlight: rgba(255, 255, 255, 0.22);
+        --glass-blur: blur(28px) saturate(170%);
+        --glass-radius: 14px;
         --text-on-purple: #f0e6ff;
         --text-muted: #b8a8c8;
         --link: #c79de8;
@@ -42,24 +50,36 @@
         --btn-bg: rgba(255, 255, 255, 0.08);
         --btn-bg-hover: rgba(255, 255, 255, 0.18);
         --btn-bg-active: rgba(255, 255, 255, 0.3);
-        --modal-bg: #1a1226;
+        --modal-bg: rgba(26, 18, 38, 0.88);
         --modal-fg: #f0e6ff;
         --modal-border: #3a2a4a;
-        --error-bg: #1a1226;
+        --error-bg: rgba(26, 18, 38, 0.90);
         --error-fg: #f0e6ff;
       }
+      html, body { background: transparent; }
       body {
         margin: 0; padding: 0;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        background-color: var(--bg);
+        background: var(--bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
         display: flex; flex-direction: column;
         height: 100vh; overflow: hidden;
+        border-radius: var(--glass-radius);
+        box-shadow: inset 0 0 0 1px var(--glass-border),
+                    inset 0 1px 0 var(--glass-highlight),
+                    inset 0 -1px 0 rgba(255, 255, 255, 0.10);
       }
+      body.maximized { border-radius: 0; }
       #titlebar {
-        height: 32px;
+        height: 36px;
         background: linear-gradient(90deg, var(--titlebar-grad-a), var(--titlebar-grad-b));
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
         color: var(--text-on-purple);
         display: flex; align-items: center; justify-content: space-between;
+        border-bottom: 1px solid var(--glass-border);
+        box-shadow: inset 0 1px 0 var(--glass-highlight);
         -webkit-app-region: drag; user-select: none;
       }
       #titlebar-left { display: flex; align-items: center; padding-left: 10px; gap: 10px; }
@@ -68,12 +88,25 @@
       .control-group { display: flex; align-items: center; gap: 5px; font-size: 12px; }
       #opacity-slider { width: 80px; accent-color: #fce8e6; cursor: pointer; }
       .tbtn {
-        background: var(--btn-bg); border: none; color: var(--text-on-purple);
-        padding: 3px 8px; border-radius: 4px; cursor: pointer;
-        font-size: 11px; font-weight: bold; transition: background 0.2s;
+        position: relative; overflow: hidden;
+        background: var(--btn-bg);
+        border: 1px solid var(--glass-border);
+        color: var(--text-on-purple);
+        padding: 3px 11px; border-radius: 999px; cursor: pointer;
+        font-size: 11px; font-weight: bold;
+        box-shadow: inset 0 1px 0 var(--glass-highlight);
+        transition: background 0.25s, box-shadow 0.25s, transform 0.15s;
       }
-      .tbtn:hover { background: var(--btn-bg-hover); }
-      .tbtn.active { background: var(--btn-bg-active); }
+      .tbtn::after {
+        content: ''; position: absolute; inset: 0; pointer-events: none;
+        background: linear-gradient(115deg, transparent 32%, rgba(255,255,255,0.38) 50%, transparent 68%);
+        transform: translateX(-130%);
+        transition: transform 0.55s ease;
+      }
+      .tbtn:hover { background: var(--btn-bg-hover); transform: translateY(-1px); }
+      .tbtn:hover::after { transform: translateX(130%); }
+      .tbtn:active { transform: translateY(0); }
+      .tbtn.active { background: var(--btn-bg-active); box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 12px rgba(255,255,255,0.18); }
       #titlebar-right { display: flex; -webkit-app-region: no-drag; height: 100%; }
       .win-btn {
         width: 40px; background: transparent; border: none;
@@ -94,6 +127,7 @@
       .error-overlay {
         position: absolute; inset: 0;
         background: var(--error-bg); color: var(--error-fg);
+        backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
         display: none; align-items: center; justify-content: center;
         flex-direction: column; gap: 12px; padding: 20px; text-align: center; z-index: 5;
       }
@@ -110,9 +144,12 @@
       }
 
       footer {
-        height: 40px;
+        height: 36px;
         background: linear-gradient(90deg, var(--footer-grad-a), var(--footer-grad-b));
-        border-top: 1px solid var(--footer-border);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border-top: 1px solid var(--glass-border);
+        box-shadow: inset 0 1px 0 var(--glass-highlight);
         padding: 0 15px; display: flex; align-items: center; justify-content: flex-start;
         font-size: 13px; color: var(--text-muted); user-select: none; position: relative;
       }
@@ -120,14 +157,19 @@
 
       /* Settings modal */
       .modal-backdrop {
-        position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+        position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
         display: none; align-items: center; justify-content: center; z-index: 1000;
       }
       .modal-backdrop.show { display: flex; }
       .modal {
         background: var(--modal-bg); color: var(--modal-fg);
-        border: 1px solid var(--modal-border); border-radius: 8px;
-        width: 480px; max-width: 92vw; padding: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--glass-border); border-radius: 16px;
+        width: 480px; max-width: 92vw; padding: 20px;
+        box-shadow: inset 0 1px 0 var(--glass-highlight), 0 18px 56px rgba(0,0,0,0.45);
       }
       .modal h2 { margin: 0 0 14px; font-size: 16px; }
       .modal .row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; gap: 12px; }
@@ -153,18 +195,18 @@
   <body data-theme="light">
     <div id="titlebar">
       <div id="titlebar-left">
-        <span id="titlebar-title">NotebookLM-for-Windows v3</span>
+        <span id="titlebar-title">NotebookLM 桌面版</span>
       </div>
       <div id="titlebar-middle">
-        <label class="control-group" title="Ghost Mode (Transparency)">
-          Opacity
+        <label class="control-group" title="幽灵模式（窗口透明度）">
+          透明度
           <input type="range" id="opacity-slider" min="0.2" max="1.0" step="0.05" value="1.0">
         </label>
-        <button id="pane-toggle" class="tbtn" title="Cycle 1 / 2 / 3 panes">Panes: 1</button>
-        <button id="pin-toggle" class="tbtn" title="Always on top">📌 Pin</button>
-        <button id="theme-toggle" class="tbtn" title="Toggle theme">🌙</button>
-        <button id="export-btn" class="tbtn" title="Export notes as Markdown">⬇ Export</button>
-        <button id="settings-btn" class="tbtn" title="Settings">⚙</button>
+        <button id="pane-toggle" class="tbtn" title="切换 1 / 2 / 3 窗格">窗格：1</button>
+        <button id="pin-toggle" class="tbtn" title="窗口置顶">📌 置顶</button>
+        <button id="theme-toggle" class="tbtn" title="切换主题">🌙</button>
+        <button id="export-btn" class="tbtn" title="导出笔记为 Markdown">⬇ 导出</button>
+        <button id="settings-btn" class="tbtn" title="设置">⚙</button>
       </div>
       <div id="titlebar-right">
         <button class="win-btn" id="min-btn">&#xE921;</button>
@@ -177,33 +219,33 @@
       <div class="view-container" id="view1-container" data-pane="1">
         <webview id="notebookView1" src="https://notebooklm.google.com/" partition="persist:notebooklm" preload="./webview-preload.js" allowpopups></webview>
         <div class="error-overlay" id="err1">
-          <div class="err-title">Couldn't reach NotebookLM</div>
-          <div class="err-body" id="err1-body">Check your internet connection or try again in a moment.</div>
+          <div class="err-title">无法连接 NotebookLM</div>
+          <div class="err-body" id="err1-body">请检查网络连接，或稍后重试。</div>
           <div class="err-actions">
-            <button class="primary" data-retry="notebookView1">Retry</button>
-            <button data-open-browser="1">Open in browser</button>
+            <button class="primary" data-retry="notebookView1">重试</button>
+            <button data-open-browser="1">在浏览器打开</button>
           </div>
         </div>
       </div>
       <div class="view-container hidden" id="view2-container" data-pane="2">
         <webview id="notebookView2" src="https://notebooklm.google.com/" partition="persist:notebooklm" preload="./webview-preload.js" allowpopups></webview>
         <div class="error-overlay" id="err2">
-          <div class="err-title">Couldn't reach NotebookLM</div>
-          <div class="err-body">Check your internet connection or try again in a moment.</div>
+          <div class="err-title">无法连接 NotebookLM</div>
+          <div class="err-body">请检查网络连接，或稍后重试。</div>
           <div class="err-actions">
-            <button class="primary" data-retry="notebookView2">Retry</button>
-            <button data-open-browser="1">Open in browser</button>
+            <button class="primary" data-retry="notebookView2">重试</button>
+            <button data-open-browser="1">在浏览器打开</button>
           </div>
         </div>
       </div>
       <div class="view-container hidden" id="view3-container" data-pane="3">
         <webview id="notebookView3" src="https://notebooklm.google.com/" partition="persist:notebooklm" preload="./webview-preload.js" allowpopups></webview>
         <div class="error-overlay" id="err3">
-          <div class="err-title">Couldn't reach NotebookLM</div>
-          <div class="err-body">Check your internet connection or try again in a moment.</div>
+          <div class="err-title">无法连接 NotebookLM</div>
+          <div class="err-body">请检查网络连接，或稍后重试。</div>
           <div class="err-actions">
-            <button class="primary" data-retry="notebookView3">Retry</button>
-            <button data-open-browser="1">Open in browser</button>
+            <button class="primary" data-retry="notebookView3">重试</button>
+            <button data-open-browser="1">在浏览器打开</button>
           </div>
         </div>
       </div>
@@ -211,8 +253,8 @@
 
     <footer>
       <div class="footer-side-left">
-        <label style="cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 11px;" title="Launch app on system startup">
-          <input type="checkbox" id="autoLaunchToggle" /> Auto-Launch
+        <label style="cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 11px;" title="开机时自动启动">
+          <input type="checkbox" id="autoLaunchToggle" /> 开机自启
         </label>
       </div>
     </footer>
@@ -220,63 +262,63 @@
     <!-- Settings modal -->
     <div class="modal-backdrop" id="settings-modal">
       <div class="modal">
-        <h2>Settings</h2>
+        <h2>设置</h2>
         <div class="row">
-          <label for="theme-select">Theme</label>
+          <label for="theme-select">主题</label>
           <select id="theme-select">
-            <option value="system">Follow system</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
+            <option value="system">跟随系统</option>
+            <option value="light">浅色</option>
+            <option value="dark">深色</option>
           </select>
         </div>
         <div class="row">
-          <label>Quick-Clip hotkey</label>
-          <input type="text" class="hotkey-capture" id="hotkey-input" readonly placeholder="Click and press a combo">
+          <label>快速剪藏快捷键</label>
+          <input type="text" class="hotkey-capture" id="hotkey-input" readonly placeholder="点击后按下组合键">
         </div>
         <div class="status-msg" id="hotkey-status"></div>
         <div class="row">
-          <label for="always-on-top-cb">Always on top</label>
+          <label for="always-on-top-cb">窗口置顶</label>
           <input type="checkbox" id="always-on-top-cb">
         </div>
         <div class="row">
-          <label for="pane-count-select">Default pane count on launch</label>
+          <label for="pane-count-select">启动时默认窗格数</label>
           <select id="pane-count-select">
             <option value="1">1</option>
             <option value="2">2</option>
             <option value="3">3</option>
           </select>
         </div>
-        <h2 style="margin-top: 14px;">Proxy</h2>
+        <h2 style="margin-top: 14px;">代理</h2>
         <div class="row">
-          <label for="proxy-mode-select">Mode</label>
+          <label for="proxy-mode-select">模式</label>
           <select id="proxy-mode-select">
-            <option value="off">Off (direct)</option>
-            <option value="system">Follow system</option>
-            <option value="tunnel">Embedded tunnel (VPS via vless/hysteria2)</option>
-            <option value="vps">Direct proxy (http/socks URL)</option>
-            <option value="mainland">Split: Google via proxy, rest direct</option>
-            <option value="manual">Manual rules</option>
+            <option value="off">关闭（直连）</option>
+            <option value="system">跟随系统</option>
+            <option value="tunnel">内嵌隧道（vless/hysteria2 直连 VPS）</option>
+            <option value="vps">直连代理（http/socks 地址）</option>
+            <option value="mainland">智能分流（Google 走代理，其余直连）</option>
+            <option value="manual">手动规则</option>
           </select>
         </div>
         <div class="row" id="proxy-server-row">
-          <label for="proxy-server-input">Proxy server (http://user:pass@host:port / socks5://)</label>
+          <label for="proxy-server-input">代理服务器（http://用户:密码@主机:端口 或 socks5://）</label>
           <input type="text" id="proxy-server-input" placeholder="socks5://127.0.0.1:7890">
         </div>
         <div class="row" id="proxy-tunnel-row">
-          <label for="proxy-tunnel-input">Tunnel URI (vless://… or hysteria2://…)</label>
+          <label for="proxy-tunnel-input">隧道 URI（vless://… 或 hysteria2://…）</label>
           <input type="password" id="proxy-tunnel-input" placeholder="vless://uuid@[2001:db8::1]:443?...">
         </div>
         <div class="row" id="proxy-rules-row">
-          <label for="proxy-rules-input">Chromium proxy rules (manual mode)</label>
+          <label for="proxy-rules-input">Chromium 代理规则（手动模式）</label>
           <input type="text" id="proxy-rules-input" placeholder="[*.]google.com=socks5://127.0.0.1:7890">
         </div>
         <div class="status-msg" id="proxy-status"></div>
         <div class="footer-row">
-          <button id="proxy-apply-btn">Apply proxy</button>
-          <button id="proxy-check-btn">Check connectivity</button>
+          <button id="proxy-apply-btn">应用代理</button>
+          <button id="proxy-check-btn">检测连通性</button>
         </div>
         <div class="footer-row">
-          <button id="settings-close">Close</button>
+          <button id="settings-close">关闭</button>
         </div>
       </div>
     </div>

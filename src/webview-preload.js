@@ -21,7 +21,7 @@ function checkForNotifications(mutations) {
                 (text.length < 100 && NOTIFICATION_TRIGGERS.some(t => text.includes(t)));
             if (isToast) {
                 ipcRenderer.sendToHost('notebook-event', {
-                    title: 'NotebookLM Update',
+                    title: 'NotebookLM 动态',
                     body: text.substring(0, 100),
                 });
             }
@@ -80,8 +80,8 @@ ipcRenderer.on('url-drop', (event, url) => {
         // Fallback: copy and notify
         navigator.clipboard.writeText(url).catch(() => {});
         ipcRenderer.sendToHost('notebook-event', {
-            title: 'URL copied',
-            body: 'Open Add Source and paste — NotebookLM URL field not detected automatically.',
+            title: '链接已复制',
+            body: '已自动复制——请打开“添加来源”手动粘贴（未识别到 URL 输入框）。',
         });
     } catch (e) {
         console.error('url-drop handler failed', e);

@@ -33,7 +33,7 @@ function applyPaneCount(n) {
         if (i < paneCount) p.container.classList.remove('hidden');
         else p.container.classList.add('hidden');
     });
-    paneToggle.textContent = `Panes: ${paneCount}`;
+    paneToggle.textContent = `窗格：${paneCount}`;
     if (activePaneIndex >= paneCount) activePaneIndex = 0;
 }
 
@@ -96,7 +96,7 @@ if (window.api) {
 }
 function updatePinUI(on) {
     pinToggle.classList.toggle('active', on);
-    pinToggle.textContent = on ? '📌 Pinned' : '📌 Pin';
+    pinToggle.textContent = on ? '📌 已置顶' : '📌 置顶';
 }
 
 // ---------- Theme ----------
@@ -181,6 +181,10 @@ if (window.api) {
         applyPaneCount(n);
         paneCount = Math.max(1, Math.min(3, n));
     });
+    // Maximized windows drop the rounded liquid-glass corners.
+    if (window.api.onWindowState) {
+        window.api.onWindowState((max) => document.body.classList.toggle('maximized', !!max));
+    }
 }
 
 // ---------- Export notes ----------
@@ -226,7 +230,7 @@ async function handleNotesExtracted(payload) {
     if (!pendingExport) return;
     pendingExport = false;
     if (!payload || !payload.markdown) {
-        if (window.api) window.api.showNotification('Export failed', 'Could not find notes — NotebookLM layout may have changed. Please file an issue.');
+        if (window.api) window.api.showNotification('导出失败', '未识别到笔记——NotebookLM 界面可能已变化。');
         return;
     }
     if (!window.api) return;
@@ -235,7 +239,7 @@ async function handleNotesExtracted(payload) {
         content: payload.markdown,
     });
     if (result && result.ok) {
-        window.api.showNotification('Notes exported', 'Saved to ' + result.filePath);
+        window.api.showNotification('笔记已导出', '已保存到 ' + result.filePath);
     }
 }
 
@@ -263,7 +267,7 @@ async function openSettings() {
     proxyRulesInput.value = s.proxyRules || '';
     try {
         const t = await window.api.getTunnelStatus();
-        if (t && t.uriConfigured) proxyTunnelInput.placeholder = `configured (running: ${!!t.running})`;
+        if (t && t.uriConfigured) proxyTunnelInput.placeholder = `已配置（运行中：${!!t.running}）`;
         else proxyTunnelInput.placeholder = 'vless://uuid@[2001:db8::1]:443?...';
     } catch (e) { /* non-fatal */ }
     updateProxyRows(proxyModeSelect.value);
@@ -296,12 +300,12 @@ paneCountSelect.addEventListener('change', (e) => {
 // Hotkey capture
 hotkeyInput.addEventListener('focus', () => {
     hotkeyInput.classList.add('recording');
-    hotkeyStatus.textContent = 'Press the combo… (Esc to cancel)';
+    hotkeyStatus.textContent = '请按下组合键…（Esc 取消）';
 });
 hotkeyInput.addEventListener('blur', () => hotkeyInput.classList.remove('recording'));
 hotkeyInput.addEventListener('keydown', async (e) => {
     e.preventDefault();
-    if (e.key === 'Escape') { hotkeyInput.blur(); hotkeyStatus.textContent = 'Cancelled'; return; }
+    if (e.key === 'Escape') { hotkeyInput.blur(); hotkeyStatus.textContent = '已取消'; return; }
     const parts = [];
     if (e.ctrlKey) parts.push('Control');
     if (e.metaKey) parts.push('Command');
@@ -309,7 +313,7 @@ hotkeyInput.addEventListener('keydown', async (e) => {
     if (e.shiftKey) parts.push('Shift');
     const key = e.key;
     if (!key || ['Control', 'Meta', 'Alt', 'Shift'].includes(key)) {
-        hotkeyStatus.textContent = 'Add a non-modifier key';
+        hotkeyStatus.textContent = '请包含一个非修饰键';
         return;
     }
     const accel = [...parts, key.length === 1 ? key.toUpperCase() : key].join('+')
@@ -319,9 +323,9 @@ hotkeyInput.addEventListener('keydown', async (e) => {
     const result = await window.api.setHotkey(accel);
     if (result && result.ok) {
         hotkeyInput.value = accel;
-        hotkeyStatus.textContent = 'Saved';
+        hotkeyStatus.textContent = '已保存';
     } else {
-        hotkeyStatus.textContent = `Couldn't bind ${accel} (conflict?). Reverted to ${result && result.current}.`;
+        hotkeyStatus.textContent = `无法绑定 ${accel}（可能被占用），已恢复为 ${result && result.current}。`;
         if (result && result.current) hotkeyInput.value = result.current;
     }
     hotkeyInput.blur();
@@ -347,10 +351,10 @@ function updateProxyRows(mode) {
 
 function proxyHelpText(mode) {
     switch (mode) {
-        case 'tunnel': return 'Embedded sing-box tunnel — paste a vless:// or hysteria2:// URI, then Apply.';
-        case 'vps': return 'All traffic through a plain http/socks proxy (needs no local client).';
-        case 'mainland': return 'Only Google/NotebookLM domains via the proxy; everything else direct.';
-        case 'manual': return 'Raw Chromium proxy rules.';
+        case 'tunnel': return '内嵌 sing-box 隧道——粘贴 vless:// 或 hysteria2:// URI 后点击应用。';
+        case 'vps': return '全部流量经由 http/socks 代理直连（无需本地客户端）。';
+        case 'mainland': return '仅 Google/NotebookLM 域名走代理，其余直连。';
+        case 'manual': return '直接填写 Chromium 代理规则。';
         default: return '';
     }
 }
@@ -362,7 +366,7 @@ if (window.api && proxyModeSelect) {
     });
 
     proxyApplyBtn.addEventListener('click', async () => {
-        proxyStatus.textContent = 'Applying…';
+        proxyStatus.textContent = '正在应用…';
         try {
             const mode = proxyModeSelect.value;
             if (mode === 'tunnel') {
@@ -378,24 +382,24 @@ if (window.api && proxyModeSelect) {
             }
             const result = await window.api.applyProxy();
             if (result && result.ok) {
-                proxyStatus.textContent = `Applied: ${JSON.stringify(result.config)}`;
+                proxyStatus.textContent = `已应用：${JSON.stringify(result.config)}`;
             } else {
-                proxyStatus.textContent = `Failed: ${result && result.error}`;
+                proxyStatus.textContent = `失败：${result && result.error}`;
             }
         } catch (e) {
-            proxyStatus.textContent = `Failed: ${e.message || e}`;
+            proxyStatus.textContent = `失败：${e.message || e}`;
         }
     });
 
     proxyCheckBtn.addEventListener('click', async () => {
-        proxyStatus.textContent = 'Checking connectivity to NotebookLM…';
+        proxyStatus.textContent = '正在检测 NotebookLM 连通性…';
         try {
             const result = await window.api.checkProxy();
             proxyStatus.textContent = result && result.ok
-                ? `Reachable: HTTP ${result.status} in ${result.ms}ms`
-                : `Unreachable: ${result && result.error}`;
+                ? `可达：HTTP ${result.status}（${result.ms}ms）`
+                : `不可达：${result && result.error}`;
         } catch (e) {
-            proxyStatus.textContent = `Check failed: ${e.message || e}`;
+            proxyStatus.textContent = `检测失败：${e.message || e}`;
         }
     });
 }

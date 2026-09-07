@@ -20,12 +20,12 @@ test.describe('theme + panes', () => {
     const window = await ctx.app.firstWindow();
     await window.waitForLoadState('domcontentloaded');
     const btn = window.locator('#pane-toggle');
-    await expect(btn).toHaveText(/Panes: 1/);
+    await expect(btn).toHaveText(/窗格：1/);
     await btn.click();
-    await expect(btn).toHaveText(/Panes: 2/);
+    await expect(btn).toHaveText(/窗格：2/);
     await btn.click();
-    await expect(btn).toHaveText(/Panes: 3/);
+    await expect(btn).toHaveText(/窗格：3/);
     await btn.click();
-    await expect(btn).toHaveText(/Panes: 1/);
+    await expect(btn).toHaveText(/窗格：1/);
   });
 });

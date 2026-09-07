@@ -59,7 +59,12 @@ function createWindow() {
         width: 1200,
         height: 800,
         frame: false,
-        transparent: false,
+        // Liquid-glass window: transparent so the rounded shell + backdrop
+        // blur in index.html can show through; degrades to an opaque rounded
+        // shell when no compositor is available.
+        transparent: true,
+        backgroundColor: '#00000000',
+        hasShadow: true,
         icon: path.join(__dirname, '../assets', 'icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -76,6 +81,13 @@ function createWindow() {
     }
 
     mainWindow.loadFile(path.join(__dirname, 'index.html'));
+
+    mainWindow.on('maximize', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('window-state', true);
+    });
+    mainWindow.on('unmaximize', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('window-state', false);
+    });
 
     mainWindow.on('close', (event) => {
         if (!isQuitting) {
@@ -103,18 +115,18 @@ function createTray() {
     tray = new Tray(iconPath);
 
     const contextMenu = Menu.buildFromTemplate([
-        { label: 'Show App', click: () => mainWindow && mainWindow.show() },
-        { label: 'Settings', click: () => {
+        { label: '显示主界面', click: () => mainWindow && mainWindow.show() },
+        { label: '设置', click: () => {
             if (mainWindow) {
                 mainWindow.show();
                 mainWindow.webContents.send('open-settings');
             }
         }},
         { type: 'separator' },
-        { label: 'Quit', click: () => { isQuitting = true; app.quit(); } },
+        { label: '退出', click: () => { isQuitting = true; app.quit(); } },
     ]);
 
-    tray.setToolTip('NotebookLM-for-Windows');
+    tray.setToolTip('NotebookLM 桌面版');
     tray.setContextMenu(contextMenu);
 
     tray.on('click', () => {
@@ -510,14 +522,14 @@ autoUpdater.autoInstallOnAppQuit = true;
 
 autoUpdater.on('update-available', () => {
     new Notification({
-        title: 'Update Available',
-        body: 'A new version of NotebookLM-for-Windows is available. It will be downloaded in the background.',
+        title: '有可用更新',
+        body: '发现新版本，将在后台下载，重启应用后安装。',
     }).show();
 });
 
 autoUpdater.on('update-downloaded', () => {
     new Notification({
-        title: 'Update Ready',
-        body: 'The new version has been downloaded and will be installed when you restart the app.',
+        title: '更新已就绪',
+        body: '新版本已下载完成，重启应用后自动安装。',
     }).show();
 });
