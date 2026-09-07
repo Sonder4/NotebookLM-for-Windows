@@ -4,6 +4,7 @@ const {
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { execFile } = require('child_process');
 const AutoLaunch = require('auto-launch');
 const { autoUpdater } = require('electron-updater');
 const settings = require('./settings');
@@ -20,6 +21,22 @@ let mainWindow;
 let quickClipOverlay;
 let tray;
 let isQuitting = false;
+
+// Single instance: a second launch focuses the existing window instead of
+// stacking another process (and another dock entry) on top of it.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+    app.quit();
+} else {
+    app.on('second-instance', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+        }
+    });
+}
+
 let currentAccelerator = null;
 
 const appLauncher = new AutoLaunch({ name: 'NotebookLM-for-Windows' });
@@ -90,9 +107,31 @@ function createWindow() {
     });
 
     mainWindow.on('close', (event) => {
-        if (!isQuitting) {
+        if (isQuitting) return;
+        // Opt-in tray mode, and the macOS dock convention.
+        if (isMac || (settings.get('closeToTray') && tray)) {
             event.preventDefault();
             mainWindow.hide();
+            return;
+        }
+        // X11: the WM's WM_DELETE path and Electron's own destroy race each
+        // other — the second X DestroyWindow fails and the 'closed' event is
+        // lost, leaving a headless process. Cancel the immediate close and
+        // route it through app.quit() so the window is destroyed exactly
+        // once, by the shutdown path.
+        event.preventDefault();
+        isQuitting = true;
+        setImmediate(() => app.quit());
+    });
+
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+        // Quit with the main window: hidden helper windows (quick-clip
+        // overlay) otherwise keep a headless process — and a dock icon —
+        // alive after the user closed the app.
+        if (!isMac && !settings.get('closeToTray')) {
+            isQuitting = true;
+            app.quit();
         }
     });
 
@@ -111,28 +150,35 @@ function createWindow() {
 }
 
 function createTray() {
-    const iconPath = path.join(__dirname, '../assets', 'icon.png');
-    tray = new Tray(iconPath);
+    // Tray support is optional (needs AppIndicator on GNOME); a missing tray
+    // must not break startup or trap the window in hide-on-close mode.
+    try {
+        const iconPath = path.join(__dirname, '../assets', 'icon.png');
+        tray = new Tray(iconPath);
 
-    const contextMenu = Menu.buildFromTemplate([
-        { label: '显示主界面', click: () => mainWindow && mainWindow.show() },
-        { label: '设置', click: () => {
-            if (mainWindow) {
-                mainWindow.show();
-                mainWindow.webContents.send('open-settings');
-            }
-        }},
-        { type: 'separator' },
-        { label: '退出', click: () => { isQuitting = true; app.quit(); } },
-    ]);
+        const contextMenu = Menu.buildFromTemplate([
+            { label: '显示主界面', click: () => mainWindow && mainWindow.show() },
+            { label: '设置', click: () => {
+                if (mainWindow) {
+                    mainWindow.show();
+                    mainWindow.webContents.send('open-settings');
+                }
+            }},
+            { type: 'separator' },
+            { label: '退出', click: () => { isQuitting = true; app.quit(); } },
+        ]);
 
-    tray.setToolTip('NotebookLM 桌面版');
-    tray.setContextMenu(contextMenu);
+        tray.setToolTip('NotebookLM 桌面版');
+        tray.setContextMenu(contextMenu);
 
-    tray.on('click', () => {
-        if (!mainWindow) return;
-        mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
-    });
+        tray.on('click', () => {
+            if (!mainWindow) return;
+            mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
+        });
+    } catch (err) {
+        console.error('tray unavailable:', err.message);
+        tray = null;
+    }
 }
 
 function createApplicationMenu() {
@@ -294,6 +340,7 @@ function startControlServer() {
 }
 
 app.whenReady().then(async () => {
+    if (!gotSingleInstanceLock) return;
     settings.init();
     tunnel.userDataDir = app.getPath('userData');
 
@@ -341,10 +388,60 @@ app.whenReady().then(async () => {
     }
 
     startControlServer();
+
+    // Watchdog: catch processes that would otherwise linger headless.
+    // 1) window destroyed but 'closed'/window-all-closed swallowed;
+    // 2) X11: the WM's close (Alt+F4, dock "close window") races Chromium's
+    //    own destroy — the X window dies while Electron still tracks it, so
+    //    'closed' never fires. Probe the X server for our window id and exit
+    //    when it is gone (silently skipped when xprop is unavailable).
+    let xProbeTool; // undefined = unresolved, 'none' = unavailable
+    setInterval(() => {
+        if (isQuitting || isMac) return;
+        if (mainWindow && mainWindow.isDestroyed()) {
+            isQuitting = true; app.quit(); return;
+        }
+        if (BrowserWindow.getAllWindows().length === 0) {
+            isQuitting = true; app.quit(); return;
+        }
+        try {
+            const wc = mainWindow && mainWindow.webContents;
+            if (wc && (wc.isDestroyed() || wc.isCrashed())) {
+                console.error('main window surface died (X11) — quitting');
+                isQuitting = true; app.quit(); return;
+            }
+        } catch (e) {
+            isQuitting = true; app.quit(); return;
+        }
+        if (process.platform !== 'linux' || !process.env.DISPLAY || !mainWindow) return;
+        if (xProbeTool === 'none') return;
+        try {
+            const xid = mainWindow.getNativeWindowHandle().readUInt32LE(0);
+            execFile(xProbeTool || 'xprop', ['-id', String(xid), 'WM_NAME'], (err) => {
+                if (!err) { xProbeTool = xProbeTool || 'xprop'; return; }
+                if (err.code === 'ENOENT') { xProbeTool = 'none'; return; }
+                if (!isQuitting) {
+                    console.error('X window closed behind Electron (WM race) — quitting');
+                    isQuitting = true; app.quit();
+                }
+            });
+        } catch (e) { /* not on X11 */ }
+    }, 3000).unref();
+
+    // Immediate counterpart of the watchdog: the renderer dies the moment
+    // its X surface is destroyed.
+    app.on('render-process-gone', (event, webContents, details) => {
+        if (mainWindow && !mainWindow.isDestroyed() && webContents === mainWindow.webContents) {
+            console.error('main window renderer gone:', details.reason, '— quitting');
+            isQuitting = true;
+            app.quit();
+        }
+    });
 });
 
 app.on('will-quit', () => {
     globalShortcut.unregisterAll();
+    try { if (controlServer) controlServer.stop(); } catch (e) { /* already gone */ }
     tunnel.stop();
 });
 
@@ -353,7 +450,9 @@ app.on('window-all-closed', () => {
         // mac convention: stay in dock
         return;
     }
-    // Windows/Linux: keep running for tray
+    // Windows/Linux: quit for real — hiding here used to leave an
+    // unclosable background process when no tray was visible.
+    app.quit();
 });
 
 // ---------- IPC ----------

@@ -121,6 +121,12 @@ const autoLaunchToggle = $('autoLaunchToggle');
 if (window.api) {
     window.api.getAutoLaunch().then(enabled => { autoLaunchToggle.checked = enabled; });
     autoLaunchToggle.addEventListener('change', (e) => window.api.setAutoLaunch(e.target.checked));
+
+    const closeToTrayToggle = $('closeToTrayToggle');
+    if (closeToTrayToggle) {
+        window.api.settingsGetAll().then(s => { closeToTrayToggle.checked = !!s.closeToTray; });
+        closeToTrayToggle.addEventListener('change', (e) => window.api.settingsSet('closeToTray', e.target.checked));
+    }
 }
 
 // ---------- Webview IPC (notebook events) ----------

@@ -12,6 +12,7 @@ const DEFAULTS = {
     paneCount: 1,
     quickClipAccelerator: 'CommandOrControl+Alt+N',
     autoLaunch: true,
+    closeToTray: false,        // hide to tray on window close (needs a working tray)
     // Proxy (independent of the system network; applied to the app session only)
     proxyMode: 'off',          // off | system | tunnel | vps | mainland | manual
     proxyServer: '',           // http(s)://[user:pass@]host:port or socks5://host:port

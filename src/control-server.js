@@ -304,8 +304,9 @@ function createControlServer({ settings, deps }) {
                 case 'hide': w.hide(); break;
                 case 'minimize': w.minimize(); break;
                 case 'maximize': w.isMaximized() ? w.unmaximize() : w.maximize(); break;
+                case 'close': w.close(); break;
                 case 'quit': deps.quit(); break;
-                default: throw new HttpError(400, 'action must be show|hide|minimize|maximize|quit');
+                default: throw new HttpError(400, 'action must be show|hide|minimize|maximize|close|quit');
             }
             return ok(res, { action });
         }
