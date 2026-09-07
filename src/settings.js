@@ -2,16 +2,24 @@ const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 const DEFAULTS = {
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: 2,
     opacity: 1.0,
     theme: 'system',
     alwaysOnTop: false,
     paneCount: 1,
     quickClipAccelerator: 'CommandOrControl+Alt+N',
     autoLaunch: true,
+    // Proxy (independent of the system network; applied to the app session only)
+    proxyMode: 'off',          // off | system | tunnel | vps | mainland | manual
+    proxyServer: '',           // http(s)://[user:pass@]host:port or socks5://host:port
+    proxyRules: '',            // raw Chromium rules for manual mode
+    tunnelPort: 18080,         // local SOCKS port of the embedded sing-box
+    // Agent control server (loopback-only, bearer-token authed)
+    controlEnabled: true,
+    controlPort: 8787,
 };
 
 let settingsPath = null;
@@ -54,8 +62,9 @@ function load() {
 }
 
 function migrate(s) {
-    // Reserved for future schema version bumps. Currently a no-op.
-    if (!s.schemaVersion) s.schemaVersion = SCHEMA_VERSION;
+    // New keys arrive via the {...DEFAULTS, ...parsed} merge; here we only
+    // track the schema version.
+    s.schemaVersion = SCHEMA_VERSION;
     return s;
 }
 
